@@ -9,15 +9,13 @@ function createPlot(data) {
   console.log(data);
 
   //display error message
-  if (data.length <= 1) {
+  if (data.length == 0) {
     ctx.textAlign = 'center';
     ctx.font = '48px serif';
     ctx.fillText('Data was empty', canvas.width / 2, canvas.height / 2);
   } else {
     // Draw the x-axis
     ctx.beginPath();
-
-    // Draw the x-axis
     ctx.moveTo(0, canvas.height / 2);
     ctx.lineTo(canvas.width, canvas.height / 2);
     ctx.strokeStyle = 'black';
@@ -59,6 +57,33 @@ function createPlot(data) {
     ctx.strokeStyle = '#eee';
     ctx.stroke();
     ctx.save();
+
+    //Calculate min/max-value of x and y.
+    var xMin = Math.min.apply(
+      Math,
+      data.map(function (item) {
+        return item.x;
+      })
+    );
+    var xMax = Math.max.apply(
+      Math,
+      data.map(function (item) {
+        return item.x;
+      })
+    );
+
+    var yMin = Math.min.apply(
+      Math,
+      data.map(function (item) {
+        return item.y;
+      })
+    );
+    var yMax = Math.max.apply(
+      Math,
+      data.map(function (item) {
+        return item.y;
+      })
+    );
 
     // Plot the data
     for (var i = 0; i < data.length; i++) {

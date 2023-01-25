@@ -4,17 +4,19 @@ const readFile = () => {
   reader.onload = (event) => {
     // Read file data
     var csvdata = event.target.result;
+    var data = csvdata.split('\r');
 
-    // Map the data to JSON-format
-    var data = csvdata.split('\n');
-    var jsonData = data.map(function (item) {
-      var values = item.split(',');
-      return {
-        x: parseInt(values[0]),
-        y: parseInt(values[1]),
-        color: values[2],
-      };
-    });
+    // Filter out empty line and map data to JSON-format.
+    var jsonData = data
+      .filter((item) => item !== '\n')
+      .map(function (item) {
+        var values = item.split(',');
+        return {
+          x: parseInt(values[0]),
+          y: parseInt(values[1]),
+          color: values[2],
+        };
+      });
 
     // Create a plot with the data
     createPlot(jsonData);
