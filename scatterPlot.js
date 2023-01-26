@@ -5,17 +5,39 @@ function createPlot(data) {
 
   //Clear canvas
   clearCanvas(ctx, canvas);
+  console.log(data);
+  // set the value range
+  const valueRange = setValueRange(data);
 
-  //display error message
-  if (data.length == 0) {
-    displayErrorMessage(ctx, canvas);
-  } else {
-    var minMaxValues = calculateMinMaxValues(data);
-    drawGrid(ctx, canvas, minMaxValues);
-    drawAxis(ctx, canvas, minMaxValues);
-    addTicks(ctx, canvas, minMaxValues);
-    plotData(ctx, canvas, data, minMaxValues);
-  }
+  // draw the x- and y-axis
+  drawAxis(ctx, valueRange);
+  // display the data points
+  displayDataPoints(ctx, data, valueRange);
+
+  // Variable to keep track of the selected point
+  var selectedPoint = null;
+
+  // Add right-click event listener to the canvas
+  canvas.addEventListener('contextmenu', function (event) {
+    event.preventDefault();
+
+    // Get the mouse click coordinates
+    var clickedPoint = {
+      x: event.pageX - canvas.offsetLeft,
+      y: event.pageY - canvas.offsetTop,
+    };
+
+    // Check if the mouse clicked on a point, if so - update selected point.
+    selectedPoint = searchPoints(ctx, data, valueRange, clickedPoint);
+    if (selectedPoint) {
+      // Use the selected points along with the data to find nearest neighbors.
+      const closest = findNearestNeigbor(data, selectedPoint);
+
+      // Highlight the nearest neighbors along with the selected point (in a different color).
+      highlightClosest(ctx, closest, valueRange);
+      hightLightSelected(ctx, selectedPoint, valueRange);
+    }
+  });
 }
 
 //Clear the canvas.
@@ -23,289 +45,212 @@ function clearCanvas(ctx, canvas) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-//Display an error message when data is empty.
-function displayErrorMessage(ctx, canvas) {
+// Set value range
+function setValueRange(data) {
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
+  for (let point of data) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  return { minX, maxX, minY, maxY };
+}
+
+// Draw x- and y-axis
+function drawAxis(ctx, valueRange, margin = 30) {
+  const { minX, maxX, minY, maxY } = valueRange;
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+
+  let originX, originY;
+  if (minX < 0 && minY < 0) {
+    // Offset the origin based on the data range and the margin
+    originX = ((0 - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
+    originY = ((0 - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+  } else {
+    originX = margin;
+    originY = height - margin;
+  }
+
+  // Draw x-axis
+  ctx.beginPath();
+  ctx.moveTo(margin, originY);
+  ctx.lineTo(width - margin, originY);
+  ctx.stroke();
+
+  // Draw y-axis
+  ctx.beginPath();
+  ctx.moveTo(originX, margin);
+  ctx.lineTo(originX, height - margin);
+  ctx.stroke();
+
+  // Draw ticks and tick values
   ctx.textAlign = 'center';
-  ctx.font = '48px serif';
-  ctx.fillText('Data was empty', canvas.width / 2, canvas.height / 2);
+  ctx.textBaseline = 'middle';
+
+  // Draw x-axis ticks and values
+  for (let i = 0; i <= maxX; i += 10) {
+    const x = ((i - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
+    if (i !== 0 && x > originX && x <= width - margin) {
+      ctx.beginPath();
+      ctx.moveTo(x, originY - 5);
+      ctx.lineTo(x, originY + 5);
+      ctx.stroke();
+      ctx.fillText(i, x, originY + 20);
+    }
+  }
+
+  for (let i = 0; i >= minX; i -= 10) {
+    const x = ((i - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
+    if (i !== 0 && x < originX && x >= margin) {
+      ctx.beginPath();
+      ctx.moveTo(x, originY - 5);
+      ctx.lineTo(x, originY + 5);
+      ctx.stroke();
+      ctx.fillText(i, x, originY + 20);
+    }
+  }
+
+  // Draw y-axis ticks and values
+  for (let i = 0; i >= minY; i -= 10) {
+    const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+    if (i !== 0 && y <= originY && y >= margin) {
+      ctx.beginPath();
+      ctx.moveTo(originX - 5, y);
+      ctx.lineTo(originX + 5, y);
+      ctx.stroke();
+      ctx.fillText(-i, originX - 20, y);
+    }
+  }
+
+  for (let i = 0; i <= maxY; i += 10) {
+    const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+    if (i !== 0 && y >= originY && y <= height - margin) {
+      ctx.beginPath();
+      ctx.moveTo(originX - 5, y);
+      ctx.lineTo(originX + 5, y);
+      ctx.stroke();
+      ctx.fillText(-i, originX - 20, y);
+    }
+  }
 }
 
-//Calculate max and min values of x and y for given data.
-function calculateMinMaxValues(data) {
-  var xMin = Number.MAX_VALUE;
-  var xMax = Number.MIN_VALUE;
-  var yMin = Number.MAX_VALUE;
-  var yMax = Number.MIN_VALUE;
-  for (var i = 0; i < data.length; i++) {
-    xMin = Math.min(xMin, data[i].x);
-    xMax = Math.max(xMax, data[i].x);
-    yMin = Math.min(yMin, data[i].y);
-    yMax = Math.max(yMax, data[i].y);
-  }
-  var margin = (xMax - xMin) * 0.1;
-  xMin -= margin;
-  xMax += margin;
-  margin = (yMax - yMin) * 0.1;
-  yMin -= margin;
-  yMax += margin;
-  return { xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax };
-}
-
-//Draw the x- and y-axis.
-function drawAxis(ctx, canvas, minMaxValues) {
-  var xyScale = scale(canvas, minMaxValues);
-  var xyRange = calculateRange(minMaxValues);
-
-  // Draw the x-axis
-  ctx.beginPath();
-
-  ctx.moveTo(0, xyScale.y * minMaxValues.yMax);
-  ctx.lineTo(xyScale.x * xyRange.x, xyScale.y * minMaxValues.yMax);
-
-  // Draw the y-axis
-  ctx.moveTo(xyScale.x * Math.abs(minMaxValues.xMin), 0);
-  ctx.lineTo(xyScale.x * Math.abs(minMaxValues.xMin), xyScale.y * xyRange.y);
-  console.log(xyScale.y * xyRange.y);
-  ctx.strokeStyle = 'black';
-  ctx.stroke();
-}
-
-//Draw the grid.
-function drawGrid(ctx, canvas, minMaxValues) {
-  var xyScale = scale(canvas, minMaxValues);
-  var xyRange = calculateRange(minMaxValues);
-
-  //determine the number of grid lines and the spacing
-  var xLines = Math.round(xyRange.x / 10);
-  var yLines = Math.round(xyRange.y / 10);
-  var xSpace = (xyScale.x * minMaxValues.xMax) / xLines;
-  var ySpace = (xyScale.y * Math.abs(minMaxValues.yMin)) / yLines;
-
-  ctx.beginPath();
-  //draw the vertical grid lines
-  for (
-    var x = xyScale.x * Math.abs(minMaxValues.xMin) + xSpace;
-    x <= xyScale.x * xyRange.x;
-    x += xSpace
-  ) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, xyScale.y * xyRange.y);
-  }
-
-  for (
-    var x = xyScale.x * Math.abs(minMaxValues.xMin) - xSpace;
-    x >= 0;
-    x -= xSpace
-  ) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, xyScale.y * xyRange.y);
-  }
-
-  //draw the horizontal grid lines
-  for (
-    var y = xyScale.y * minMaxValues.yMax + ySpace;
-    y < xyScale.y * xyRange.y;
-    y += ySpace
-  ) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(xyScale.x * xyRange.x, y);
-  }
-
-  for (var y = xyScale.y * minMaxValues.yMax - ySpace; y > 0; y -= ySpace) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(xyScale.x * xyRange.x, y);
-  }
-
-  //set the grid style and draw the lines
-  ctx.strokeStyle = 'whitesmoke';
-  ctx.stroke();
-}
-
-//Draw ticks
-function addTicks(ctx, canvas, minMaxValues) {
-  //Calculate the number of tick marks and the spacing for the x- and y-axis
-  var xyScale = scale(canvas, minMaxValues);
-  var xyRange = calculateRange(minMaxValues);
-
-  var xTickMarks = Math.round(xyRange.x / 10);
-  var yTickMarks = Math.round(xyRange.y / 10);
-
-  var xTickSpace = (xyScale.x * minMaxValues.xMax) / xTickMarks;
-  var yTickSpace = (xyScale.y * Math.abs(minMaxValues.yMin)) / yTickMarks;
-
-  var xTickValue = Math.round(minMaxValues.xMax / xTickMarks);
-  var yTickValue = Math.round(minMaxValues.yMax / yTickMarks);
-  var counter = 1;
-
-  ctx.beginPath();
-  //Draw the tick marks on the x-axis
-  for (
-    var x = xyScale.x * Math.abs(minMaxValues.xMin) + xTickSpace;
-    x <= xyScale.x * xyRange.x;
-    x += xTickSpace
-  ) {
-    ctx.moveTo(x, canvas.height / 2 - 5);
-    ctx.lineTo(x, canvas.height / 2 + 5);
-    ctx.fillText(xTickValue * counter, x, canvas.height / 2 + 15);
-    counter++;
-  }
-
-  counter = -1;
-  //Draw the tick marks on the x-axis
-  for (
-    var x = xyScale.x * Math.abs(minMaxValues.xMin) - xTickSpace;
-    x >= 0;
-    x -= xTickSpace
-  ) {
-    ctx.moveTo(x, xyScale.y * minMaxValues.yMax - 5);
-    ctx.lineTo(x, xyScale.y * minMaxValues.yMax + 5);
-    ctx.fillText(xTickValue * counter, x, xyScale.y * minMaxValues.yMax + 15);
-    counter--;
-  }
-
-  counter = -1;
-  //Draw the tick marks on the y-axis
-  for (
-    var y = xyScale.y * minMaxValues.yMax + yTickSpace;
-    y < xyScale.y * xyRange.y;
-    y += yTickSpace
-  ) {
-    ctx.moveTo(xyScale.x * Math.abs(minMaxValues.xMin) - 5, y);
-    ctx.lineTo(xyScale.x * Math.abs(minMaxValues.xMin) + 5, y);
-    ctx.fillText(
-      yTickValue * counter,
-      xyScale.x * Math.abs(minMaxValues.xMin) - 20,
-      y
-    );
-    counter--;
-  }
-
-  counter = 1;
-  //Draw the tick marks on the y-axis
-  for (
-    var y = xyScale.y * minMaxValues.yMax - yTickSpace;
-    y >= 0;
-    y -= yTickSpace
-  ) {
-    ctx.moveTo(xyScale.x * Math.abs(minMaxValues.xMin) - 5, y);
-    ctx.lineTo(xyScale.x * Math.abs(minMaxValues.xMin) + 5, y);
-    ctx.fillText(
-      yTickValue * counter,
-      xyScale.x * Math.abs(minMaxValues.xMin) - 20,
-      y
-    );
-    counter++;
-  }
-
-  ctx.strokeStyle = 'gray';
-  ctx.stroke();
-}
-
-//Plot the data on the grid.
-function plotData(ctx, canvas, data, minMaxValues) {
-  var xyScale = scale(canvas, minMaxValues);
-
-  // Plot the data
-  for (var i = 0; i < data.length; i++) {
-    // Get the x and y values.
-    var x = (data[i].x - minMaxValues.xMin) * xyScale.x;
-    var y = canvas.height - (data[i].y - minMaxValues.yMin) * xyScale.y;
-    var color = data[i].color;
-
-    // Draw a circle at the x and y position
+// Display data points
+function displayDataPoints(ctx, data, valueRange) {
+  for (let point of data) {
+    // calculate the position of the point on the canvas
+    const pos = cartesianToCanvas(ctx, point, valueRange);
+    const color = point.color;
     ctx.beginPath();
-    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI);
     ctx.fillStyle = color === 'a' ? 'blue' : color === 'b' ? 'red' : 'green';
+    ctx.fillText('(' + point.x + ',' + point.y + ')', pos.x + 10, pos.y + 10);
     ctx.fill();
-    ctx.fillText('(' + data[i].x + ',' + data[i].y + ')', x + 8, y + 8);
-    (function (i, x, y, data) {
-      ctx.canvas.addEventListener('click', function (event) {
-        var xClick = event.pageX - canvas.offsetLeft;
-        var yClick = event.pageY - canvas.offsetTop;
-        // check if the click is inside the data point
-        if (
-          xClick > x - 5 &&
-          xClick < x + 5 &&
-          yClick > y - 5 &&
-          yClick < y + 5
-        ) {
-          // do something
-          console.log(
-            'Data point ' +
-              i +
-              ' with coordinates (' +
-              data[i].x +
-              ', ' +
-              data[i].y +
-              ') clicked!'
-          );
-          // Find the five closest points
-          var closestPoints = [];
-          for (var j = 0; j < data.length; j++) {
-            if (i !== j) {
-              var distance = Math.sqrt(
-                Math.pow(data[j].x - data[i].x, 2) +
-                  Math.pow(data[j].y - data[i].y, 2)
-              );
-              closestPoints.push({
-                x: data[j].x,
-                y: data[j].y,
-                distance: distance,
-              });
-            }
-          }
-          // Sort the closestPoints array by distance
-          closestPoints.sort(function (a, b) {
-            return a.distance - b.distance;
-          });
-          // Get the first five elements of the sorted array
-          closestPoints = closestPoints.slice(0, 5);
-          console.log(closestPoints);
-
-          for (var k = 0; k < closestPoints.length; k++) {
-            var x_new = (closestPoints[k].x - minMaxValues.xMin) * xyScale.x;
-            var y_new =
-              canvas.height -
-              (closestPoints[k].y - minMaxValues.yMin) * xyScale.y;
-
-            // Draw a red circle around the closest points
-            ctx.beginPath();
-            ctx.arc(x_new, y_new, 7, 0, 2 * Math.PI);
-            ctx.strokeStyle = 'red';
-            ctx.stroke();
-          }
-
-          // Draw a red circle around the closest points
-          ctx.beginPath();
-          ctx.arc(x, y, 7, 0, 2 * Math.PI);
-          ctx.strokeStyle = 'orange';
-          ctx.stroke();
-        }
-      });
-    })(i, x, y, data);
   }
 }
 
-function scale(canvas, minMaxValues) {
-  //calculate the range of x and y
-  var xyRange = calculateRange(minMaxValues);
+// Get canvas position of a point.
+function cartesianToCanvas(ctx, point, valueRange, margin = 30) {
+  const { minX, maxX, minY, maxY } = valueRange;
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  const x = ((point.x - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
+  const y = ((maxY - point.y) / (maxY - minY)) * (height - 2 * margin) + margin;
 
-  //calculate the scale of x and y
-  var x = canvas.width / xyRange.x;
-  var y = canvas.height / xyRange.y;
-
-  return { x, y };
+  return { x: x, y: y };
 }
 
-function calculateRange(minMaxValues) {
-  var xMin = minMaxValues.xMin;
-  var yMin = minMaxValues.yMin;
-  var xMax = minMaxValues.xMax;
-  var yMax = minMaxValues.yMax;
+// Get cartesian coordinate from current canvas position.
+function canvasToCartesian(ctx, point, valueRange, margin = 30) {
+  const { minX, maxX, minY, maxY } = valueRange;
+  const width = ctx.canvas.width;
+  const height = ctx.canvas.height;
+  const pos = {
+    x:
+      Math.round(
+        (((point.x - margin) / (width - 2 * margin)) * (maxX - minX) + minX) *
+          100
+      ) / 100,
+    y: Math.round(
+      (-(((point.y - margin) / (height - 2 * margin)) * (maxY - minY) - maxY) *
+        100) /
+        100
+    ),
+  };
 
-  //calculate the range of x and y
-  var x = xMax - xMin;
-  var y = yMax - yMin;
+  return { pos };
+}
 
-  return { x, y };
+// Check if user clicked on a point on the grid. If not, return null.
+function searchPoints(ctx, data, valueRange, clickedPoint) {
+  // Compare clicked position with the location of each point.
+  for (let point of data) {
+    const pos = cartesianToCanvas(ctx, point, valueRange);
+    if (
+      Math.abs(pos.x - clickedPoint.x) < 5 &&
+      Math.abs(pos.y - clickedPoint.y) < 5
+    ) {
+      //Convert to cartesian coordinates.
+      return canvasToCartesian(ctx, pos, valueRange);
+    }
+  }
+  return null;
+}
+
+// Find the five nearest neighbors to the selected point.
+function findNearestNeigbor(data, selectedPoint) {
+  var pointDistance = [];
+  for (let point of data) {
+    // Don't compare with same point.
+    if (point.x != selectedPoint.pos.x && point.y != selectedPoint.pos.y) {
+      pointDistance.push({
+        x: point.x,
+        y: point.y,
+        distance: euclidianDistance(point, selectedPoint.pos),
+      });
+    }
+  }
+
+  // Sort the list
+  pointDistance.sort(function (a, b) {
+    return a.distance - b.distance;
+  });
+
+  // We are only interested of the five nearest.
+  return pointDistance.slice(0, 5);
+}
+
+// Calculate the Euclidian distance.
+function euclidianDistance(point1, point2) {
+  return Math.sqrt(
+    Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2)
+  );
+}
+
+// Highlight the closest points with red circles.
+function highlightClosest(ctx, closest, valueRange) {
+  for (var i = 0; i < closest.length; i++) {
+    // Convert to canvas coordinates.
+    var point = cartesianToCanvas(ctx, closest[i], valueRange);
+    // Draw a red circle around the closest points.
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'red';
+    ctx.stroke();
+  }
+}
+
+// Highlight the selected point with an orange circle.
+function hightLightSelected(ctx, selectedPoint, valueRange) {
+  // Convert to canvas coordinates.
+  var point = cartesianToCanvas(ctx, selectedPoint.pos, valueRange);
+  // Draw an orange circle around the selected point.
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
+  ctx.strokeStyle = 'orange';
+  ctx.stroke();
 }
