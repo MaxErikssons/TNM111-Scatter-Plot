@@ -269,6 +269,25 @@ function plotData(ctx, canvas, data, minMaxValues) {
           // Get the first five elements of the sorted array
           closestPoints = closestPoints.slice(0, 5);
           console.log(closestPoints);
+
+          for (var k = 0; k < closestPoints.length; k++) {
+            var x_new = (closestPoints[k].x - minMaxValues.xMin) * xyScale.x;
+            var y_new =
+              canvas.height -
+              (closestPoints[k].y - minMaxValues.yMin) * xyScale.y;
+
+            // Draw a red circle around the closest points
+            ctx.beginPath();
+            ctx.arc(x_new, y_new, 7, 0, 2 * Math.PI);
+            ctx.strokeStyle = 'red';
+            ctx.stroke();
+          }
+
+          // Draw a red circle around the closest points
+          ctx.beginPath();
+          ctx.arc(x, y, 7, 0, 2 * Math.PI);
+          ctx.strokeStyle = 'orange';
+          ctx.stroke();
         }
       });
     })(i, x, y, data);
