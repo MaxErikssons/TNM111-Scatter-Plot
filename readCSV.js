@@ -19,7 +19,7 @@ const readFile = () => {
       });
 
     // Create a plot with the data
-    createPlot(jsonData);
+    createPlot(jsonData, null, null);
   };
   // start reading the file. When it is done, call the onload event defined above.
   reader.readAsText(fileInput.files[0]);

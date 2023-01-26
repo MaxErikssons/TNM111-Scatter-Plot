@@ -1,4 +1,4 @@
-function createPlot(data) {
+function createPlot(data, selectedPoint, previouslySelectedPoint) {
   // Get canvas element from HTML
   var canvas = document.getElementById('scatterCanvas');
   var ctx = canvas.getContext('2d');
@@ -14,8 +14,14 @@ function createPlot(data) {
   // display the data points
   displayDataPoints(ctx, data, valueRange);
 
-  // Variable to keep track of the selected point
-  var selectedPoint = null;
+  if (previouslySelectedPoint != null) {
+    // Use the selected points along with the data to find nearest neighbors.
+    const closest = findNearestNeigbor(data, previouslySelectedPoint);
+
+    // Highlight the nearest neighbors along with the selected point (in a different color).
+    highlightClosest(ctx, closest, valueRange);
+    hightLightSelected(ctx, previouslySelectedPoint, valueRange);
+  }
 
   // Add right-click event listener to the canvas
   canvas.addEventListener('contextmenu', function (event) {
@@ -29,13 +35,39 @@ function createPlot(data) {
 
     // Check if the mouse clicked on a point, if so - update selected point.
     selectedPoint = searchPoints(ctx, data, valueRange, clickedPoint);
-    if (selectedPoint) {
+
+    // If user selected a point.
+    if (
+      selectedPoint &&
+      previouslySelectedPoint == null &&
+      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
+    ) {
       // Use the selected points along with the data to find nearest neighbors.
       const closest = findNearestNeigbor(data, selectedPoint);
 
       // Highlight the nearest neighbors along with the selected point (in a different color).
       highlightClosest(ctx, closest, valueRange);
       hightLightSelected(ctx, selectedPoint, valueRange);
+      previouslySelectedPoint = selectedPoint;
+    }
+    // If user selected same point twice.
+    else if (
+      selectedPoint != null &&
+      JSON.stringify(selectedPoint) === JSON.stringify(previouslySelectedPoint)
+    ) {
+      selectedPoint = null;
+      previouslySelectedPoint = null;
+      createPlot(data, selectedPoint, previouslySelectedPoint);
+    }
+
+    // If use selected a different point.
+    else if (
+      selectedPoint != null &&
+      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
+    ) {
+      previouslySelectedPoint = selectedPoint;
+      selectedPoint = null;
+      createPlot(data, selectedPoint, previouslySelectedPoint);
     }
   });
 }
@@ -147,7 +179,12 @@ function displayDataPoints(ctx, data, valueRange) {
     const color = point.color;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle = color === 'a' ? 'blue' : color === 'b' ? 'red' : 'green';
+    ctx.fillStyle =
+      color === 'a' || color === 'foo'
+        ? 'blue'
+        : color === 'b' || color === 'baz'
+        ? 'red'
+        : 'green';
     ctx.fillText('(' + point.x + ',' + point.y + ')', pos.x + 10, pos.y + 10);
     ctx.fill();
   }
