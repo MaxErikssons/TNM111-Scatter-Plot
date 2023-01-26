@@ -5,7 +5,6 @@ function createPlot(data, selectedPoint, previouslySelectedPoint) {
 
   //Clear canvas
   clearCanvas(ctx, canvas);
-  console.log(data);
   // set the value range
   const valueRange = setValueRange(data);
 
@@ -57,7 +56,7 @@ function createPlot(data, selectedPoint, previouslySelectedPoint) {
     ) {
       selectedPoint = null;
       previouslySelectedPoint = null;
-      createPlot(data, selectedPoint, previouslySelectedPoint);
+      return createPlot(data, selectedPoint, previouslySelectedPoint);
     }
 
     // If use selected a different point.
@@ -67,7 +66,7 @@ function createPlot(data, selectedPoint, previouslySelectedPoint) {
     ) {
       previouslySelectedPoint = selectedPoint;
       selectedPoint = null;
-      createPlot(data, selectedPoint, previouslySelectedPoint);
+      return createPlot(data, selectedPoint, previouslySelectedPoint);
     }
   });
 }
@@ -148,14 +147,29 @@ function drawAxis(ctx, valueRange, margin = 30) {
   }
 
   // Draw y-axis ticks and values
-  for (let i = 0; i >= minY; i -= 10) {
-    const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
-    if (i !== 0 && y <= originY && y >= margin) {
-      ctx.beginPath();
-      ctx.moveTo(originX - 5, y);
-      ctx.lineTo(originX + 5, y);
-      ctx.stroke();
-      ctx.fillText(-i, originX - 20, y);
+  if (minY > 0) {
+    for (let i = minY; i <= maxY; i += 10) {
+      const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+      console.log(i);
+      console.log(y);
+      if (i !== 0 && y <= originY && y >= margin) {
+        ctx.beginPath();
+        ctx.moveTo(originX - 5, height - y);
+        ctx.lineTo(originX + 5, height - y);
+        ctx.stroke();
+        ctx.fillText(i, originX - 20, height - y);
+      }
+    }
+  } else {
+    for (let i = 0; i >= minY; i -= 10) {
+      const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+      if (i !== 0 && y <= originY && y >= margin) {
+        ctx.beginPath();
+        ctx.moveTo(originX - 5, y);
+        ctx.lineTo(originX + 5, y);
+        ctx.stroke();
+        ctx.fillText(-i, originX - 20, y);
+      }
     }
   }
 
@@ -243,7 +257,7 @@ function findNearestNeigbor(data, selectedPoint) {
   var pointDistance = [];
   for (let point of data) {
     // Don't compare with same point.
-    if (point.x != selectedPoint.pos.x && point.y != selectedPoint.pos.y) {
+    if (point.x != selectedPoint.pos.x || point.y != selectedPoint.pos.y) {
       pointDistance.push({
         x: point.x,
         y: point.y,
