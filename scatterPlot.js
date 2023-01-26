@@ -6,8 +6,6 @@ function createPlot(data) {
   //Clear canvas
   clearCanvas(ctx, canvas);
 
-  console.log(data);
-
   //display error message
   if (data.length == 0) {
     displayErrorMessage(ctx, canvas);
@@ -17,6 +15,15 @@ function createPlot(data) {
     drawAxis(ctx, canvas, minMaxValues);
     addTicks(ctx, canvas, minMaxValues);
     plotData(ctx, canvas, data, minMaxValues);
+    canvas.addEventListener(
+      'click',
+      function (evt) {
+        var mousePos = getMousePos(canvas, minMaxValues, evt);
+        alert(Math.round(mousePos.x) + ',' + Math.round(mousePos.y));
+        console.log(data);
+      },
+      false
+    );
   }
 }
 
@@ -254,5 +261,19 @@ function calculateRange(minMaxValues) {
   var x = xMax - xMin;
   var y = yMax - yMin;
 
+  return { x, y };
+}
+
+//Get Mouse Position
+function getMousePos(canvas, minMaxValues, evt) {
+  var rect = canvas.getBoundingClientRect();
+
+  xyScale = scale(canvas, minMaxValues);
+  var x = (evt.clientX - rect.left) * xyScale.x;
+  var y = (evt.clientY - rect.top) * xyScale.y;
+
+  console.log(evt.clientX - rect.left);
+  console.log(evt.clientY);
+  console.log(rect.left);
   return { x, y };
 }
