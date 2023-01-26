@@ -15,15 +15,6 @@ function createPlot(data) {
     drawAxis(ctx, canvas, minMaxValues);
     addTicks(ctx, canvas, minMaxValues);
     plotData(ctx, canvas, data, minMaxValues);
-    canvas.addEventListener(
-      'click',
-      function (evt) {
-        var mousePos = getMousePos(canvas, minMaxValues, evt);
-        alert(Math.round(mousePos.x) + ',' + Math.round(mousePos.y));
-        console.log(data);
-      },
-      false
-    );
   }
 }
 
@@ -225,8 +216,6 @@ function plotData(ctx, canvas, data, minMaxValues) {
   // Plot the data
   for (var i = 0; i < data.length; i++) {
     // Get the x and y values.
-    //DETTA ÄR HÅRDKODAT OCH ÄR INTE ALLTID SKALENLIGT! Vet inte hur det ska lösas.
-    console.log(canvas.height - (data[i].y - minMaxValues.yMin) * xyScale.y);
     var x = (data[i].x - minMaxValues.xMin) * xyScale.x;
     var y = canvas.height - (data[i].y - minMaxValues.yMin) * xyScale.y;
     var color = data[i].color;
@@ -237,6 +226,30 @@ function plotData(ctx, canvas, data, minMaxValues) {
     ctx.fillStyle = color === 'a' ? 'blue' : color === 'b' ? 'red' : 'green';
     ctx.fill();
     ctx.fillText('(' + data[i].x + ',' + data[i].y + ')', x + 8, y + 8);
+    (function (i, x, y, data) {
+      ctx.canvas.addEventListener('click', function (event) {
+        var xClick = event.pageX - canvas.offsetLeft;
+        var yClick = event.pageY - canvas.offsetTop;
+        // check if the click is inside the data point
+        if (
+          xClick > x - 5 &&
+          xClick < x + 5 &&
+          yClick > y - 5 &&
+          yClick < y + 5
+        ) {
+          // do something
+          console.log(
+            'Data point ' +
+              i +
+              ' with coordinates (' +
+              data[i].x +
+              ', ' +
+              data[i].y +
+              ') clicked!'
+          );
+        }
+      });
+    })(i, x, y, data);
   }
 }
 
@@ -261,19 +274,5 @@ function calculateRange(minMaxValues) {
   var x = xMax - xMin;
   var y = yMax - yMin;
 
-  return { x, y };
-}
-
-//Get Mouse Position
-function getMousePos(canvas, minMaxValues, evt) {
-  var rect = canvas.getBoundingClientRect();
-
-  xyScale = scale(canvas, minMaxValues);
-  var x = (evt.clientX - rect.left) * xyScale.x;
-  var y = (evt.clientY - rect.top) * xyScale.y;
-
-  console.log(evt.clientX - rect.left);
-  console.log(evt.clientY);
-  console.log(rect.left);
   return { x, y };
 }
