@@ -247,6 +247,28 @@ function plotData(ctx, canvas, data, minMaxValues) {
               data[i].y +
               ') clicked!'
           );
+          // Find the five closest points
+          var closestPoints = [];
+          for (var j = 0; j < data.length; j++) {
+            if (i !== j) {
+              var distance = Math.sqrt(
+                Math.pow(data[j].x - data[i].x, 2) +
+                  Math.pow(data[j].y - data[i].y, 2)
+              );
+              closestPoints.push({
+                x: data[j].x,
+                y: data[j].y,
+                distance: distance,
+              });
+            }
+          }
+          // Sort the closestPoints array by distance
+          closestPoints.sort(function (a, b) {
+            return a.distance - b.distance;
+          });
+          // Get the first five elements of the sorted array
+          closestPoints = closestPoints.slice(0, 5);
+          console.log(closestPoints);
         }
       });
     })(i, x, y, data);
