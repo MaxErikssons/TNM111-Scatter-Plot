@@ -32,31 +32,23 @@ function displayErrorMessage(ctx, canvas) {
 
 //Calculate max and min values of x and y for given data.
 function calculateMinMaxValues(data) {
-  var xMin = Math.min.apply(
-    Math,
-    data.map(function (item) {
-      return item.x;
-    })
-  );
-  var xMax = Math.max.apply(
-    Math,
-    data.map(function (item) {
-      return item.x;
-    })
-  );
-  var yMin = Math.min.apply(
-    Math,
-    data.map(function (item) {
-      return item.y;
-    })
-  );
-  var yMax = Math.max.apply(
-    Math,
-    data.map(function (item) {
-      return item.y;
-    })
-  );
-  return { xMin, xMax, yMin, yMax };
+  var xMin = Number.MAX_VALUE;
+  var xMax = Number.MIN_VALUE;
+  var yMin = Number.MAX_VALUE;
+  var yMax = Number.MIN_VALUE;
+  for (var i = 0; i < data.length; i++) {
+    xMin = Math.min(xMin, data[i].x);
+    xMax = Math.max(xMax, data[i].x);
+    yMin = Math.min(yMin, data[i].y);
+    yMax = Math.max(yMax, data[i].y);
+  }
+  var margin = (xMax - xMin) * 0.1;
+  xMin -= margin;
+  xMax += margin;
+  margin = (yMax - yMin) * 0.1;
+  yMin -= margin;
+  yMax += margin;
+  return { xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax };
 }
 
 //Draw the x- and y-axis.
