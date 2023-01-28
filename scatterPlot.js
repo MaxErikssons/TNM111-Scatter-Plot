@@ -1,74 +1,27 @@
-function createPlot(data, selectedPoint, previouslySelectedPoint) {
+function createPlot(
+  initialData,
+  newOriginData,
+  selectedPoint,
+  previouslySelectedPoint,
+  leftClick
+) {
   // Get canvas element from HTML
   var canvas = document.getElementById('scatterCanvas');
   var ctx = canvas.getContext('2d');
 
   //Clear canvas
   clearCanvas(ctx, canvas);
-  // set the value range
-  const valueRange = setValueRange(data);
 
-  // draw the x- and y-axis
-  drawAxis(ctx, valueRange);
-  // display the data points
-  displayDataPoints(ctx, data, valueRange);
-
-  if (previouslySelectedPoint != null) {
-    // Use the selected points along with the data to find nearest neighbors.
-    const closest = findNearestNeigbor(data, previouslySelectedPoint);
-
-    // Highlight the nearest neighbors along with the selected point (in a different color).
-    highlightClosest(ctx, closest, valueRange);
-    hightLightSelected(ctx, previouslySelectedPoint, valueRange);
-  }
-
-  // Add right-click event listener to the canvas
-  canvas.addEventListener('contextmenu', function (event) {
-    event.preventDefault();
-
-    // Get the mouse click coordinates
-    var clickedPoint = {
-      x: event.pageX - canvas.offsetLeft,
-      y: event.pageY - canvas.offsetTop,
-    };
-
-    // Check if the mouse clicked on a point, if so - update selected point.
-    selectedPoint = searchPoints(ctx, data, valueRange, clickedPoint);
-
-    // If user selected a point.
-    if (
-      selectedPoint &&
-      previouslySelectedPoint == null &&
-      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
-    ) {
-      // Use the selected points along with the data to find nearest neighbors.
-      const closest = findNearestNeigbor(data, selectedPoint);
-
-      // Highlight the nearest neighbors along with the selected point (in a different color).
-      highlightClosest(ctx, closest, valueRange);
-      hightLightSelected(ctx, selectedPoint, valueRange);
-      previouslySelectedPoint = selectedPoint;
-    }
-    // If user selected same point twice.
-    else if (
-      selectedPoint != null &&
-      JSON.stringify(selectedPoint) === JSON.stringify(previouslySelectedPoint)
-    ) {
-      selectedPoint = null;
-      previouslySelectedPoint = null;
-      return createPlot(data, selectedPoint, previouslySelectedPoint);
-    }
-
-    // If use selected a different point.
-    else if (
-      selectedPoint != null &&
-      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
-    ) {
-      previouslySelectedPoint = selectedPoint;
-      selectedPoint = null;
-      return createPlot(data, selectedPoint, previouslySelectedPoint);
-    }
-  });
+  //Draw plot.
+  drawPlot(
+    ctx,
+    initialData,
+    newOriginData,
+    selectedPoint,
+    previouslySelectedPoint,
+    canvas,
+    leftClick
+  );
 }
 
 //Clear the canvas.
@@ -92,29 +45,38 @@ function setValueRange(data) {
 }
 
 // Draw x- and y-axis
-function drawAxis(ctx, valueRange, margin = 30) {
+function drawAxis(ctx, valueRange, leftClick, selectedPoint, margin = 30) {
   const { minX, maxX, minY, maxY } = valueRange;
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
 
   let originX, originY;
-  if (minX < 0 && minY < 0) {
-    // Offset the origin based on the data range and the margin
-    originX = ((0 - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
-    originY = ((0 - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
+  if (leftClick) {
+    originX = cartesianToCanvas(ctx, selectedPoint.pos, valueRange).x;
+    originY = cartesianToCanvas(ctx, selectedPoint.pos, valueRange).y;
   } else {
-    originX = margin;
-    originY = height - margin;
+    originX =
+      minX < 0
+        ? (originX =
+            ((0 - minX) / (maxX - minX)) * (width - 2 * margin) + margin)
+        : margin;
+    originY =
+      minY < 0
+        ? (originY =
+            ((0 - minY) / (maxY - minY)) * (height - 2 * margin) + margin)
+        : height - margin;
   }
-
   // Draw x-axis
   ctx.beginPath();
+  ctx.fillStyle = 'black';
   ctx.moveTo(margin, originY);
   ctx.lineTo(width - margin, originY);
   ctx.stroke();
 
   // Draw y-axis
   ctx.beginPath();
+  ctx.fillStyle = 'black';
+
   ctx.moveTo(originX, margin);
   ctx.lineTo(originX, height - margin);
   ctx.stroke();
@@ -123,11 +85,12 @@ function drawAxis(ctx, valueRange, margin = 30) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Draw x-axis ticks and values
+  // Draw x-tick values
   for (let i = 0; i <= maxX; i += 10) {
     const x = ((i - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
     if (i !== 0 && x > originX && x <= width - margin) {
       ctx.beginPath();
+      ctx.fillStyle = 'black';
       ctx.moveTo(x, originY - 5);
       ctx.lineTo(x, originY + 5);
       ctx.stroke();
@@ -139,6 +102,7 @@ function drawAxis(ctx, valueRange, margin = 30) {
     const x = ((i - minX) / (maxX - minX)) * (width - 2 * margin) + margin;
     if (i !== 0 && x < originX && x >= margin) {
       ctx.beginPath();
+      ctx.fillStyle = 'black';
       ctx.moveTo(x, originY - 5);
       ctx.lineTo(x, originY + 5);
       ctx.stroke();
@@ -146,41 +110,26 @@ function drawAxis(ctx, valueRange, margin = 30) {
     }
   }
 
-  // Draw y-axis ticks and values
-  if (minY > 0) {
-    for (let i = minY; i <= maxY; i += 10) {
-      const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
-      console.log(i);
-      console.log(y);
-      if (i !== 0 && y <= originY && y >= margin) {
-        ctx.beginPath();
-        ctx.moveTo(originX - 5, height - y);
-        ctx.lineTo(originX + 5, height - y);
-        ctx.stroke();
-        ctx.fillText(i, originX - 20, height - y);
-      }
-    }
-  } else {
-    for (let i = 0; i >= minY; i -= 10) {
-      const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
-      if (i !== 0 && y <= originY && y >= margin) {
-        ctx.beginPath();
-        ctx.moveTo(originX - 5, y);
-        ctx.lineTo(originX + 5, y);
-        ctx.stroke();
-        ctx.fillText(-i, originX - 20, y);
-      }
-    }
-  }
-
+  // Draw y-tick values
   for (let i = 0; i <= maxY; i += 10) {
-    const y = ((i - minY) / (maxY - minY)) * (height - 2 * margin) + margin;
-    if (i !== 0 && y >= originY && y <= height - margin) {
+    const y = ((maxY - i) / (maxY - minY)) * (height - 2 * margin) + margin;
+    if (i !== 0 && y < originY && y >= margin) {
       ctx.beginPath();
       ctx.moveTo(originX - 5, y);
       ctx.lineTo(originX + 5, y);
       ctx.stroke();
-      ctx.fillText(-i, originX - 20, y);
+      ctx.fillText(i, originX - 20, y);
+    }
+  }
+
+  for (let i = 0; i >= minY; i -= 10) {
+    const y = ((maxY - i) / (maxY - minY)) * (height - 2 * margin) + margin;
+    if (i !== 0 && y > originY && y <= height - margin) {
+      ctx.beginPath();
+      ctx.moveTo(originX - 5, y);
+      ctx.lineTo(originX + 5, y);
+      ctx.stroke();
+      ctx.fillText(i, originX - 20, y);
     }
   }
 }
@@ -190,15 +139,10 @@ function displayDataPoints(ctx, data, valueRange) {
   for (let point of data) {
     // calculate the position of the point on the canvas
     const pos = cartesianToCanvas(ctx, point, valueRange);
-    const color = point.color;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, 5, 0, 2 * Math.PI);
-    ctx.fillStyle =
-      color === 'a' || color === 'foo'
-        ? 'blue'
-        : color === 'b' || color === 'baz'
-        ? 'red'
-        : 'green';
+    ctx.fillStyle = getQuadrantColor(point);
+
     ctx.fillText('(' + point.x + ',' + point.y + ')', pos.x + 10, pos.y + 10);
     ctx.fill();
   }
@@ -304,4 +248,212 @@ function hightLightSelected(ctx, selectedPoint, valueRange) {
   ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
   ctx.strokeStyle = 'orange';
   ctx.stroke();
+}
+
+// Get coordinates of mouseclick
+function getClickCoordinates(event, canvas) {
+  return {
+    x: event.pageX - canvas.offsetLeft,
+    y: event.pageY - canvas.offsetTop,
+  };
+}
+
+// Function to determine color based on quadrant
+function getQuadrantColor(point) {
+  if (point.x >= 0 && point.y >= 0) return 'red';
+  if (point.x < 0 && point.y >= 0) return 'green';
+  if (point.x < 0 && point.y < 0) return 'blue';
+  if (point.x >= 0 && point.y < 0) return 'black';
+}
+
+//Draw the plot
+function drawPlot(
+  ctx,
+  initialData,
+  newOriginData,
+  selectedPoint,
+  previouslySelectedPoint,
+  canvas,
+  leftClick
+) {
+  let data =
+    newOriginData === null
+      ? structuredClone(initialData)
+      : structuredClone(newOriginData);
+  // set the value range
+  const valueRange = setValueRange(data);
+
+  // draw the x- and y-axis
+  drawAxis(ctx, valueRange, leftClick, selectedPoint);
+
+  // display the data points
+  displayDataPoints(ctx, data, valueRange);
+
+  if (previouslySelectedPoint) {
+    // Use the selected points along with the data to find nearest neighbors.
+    const closest = findNearestNeigbor(data, previouslySelectedPoint);
+
+    // Highlight the nearest neighbors along with the selected point (in a different color).
+    highlightClosest(ctx, closest, valueRange);
+    hightLightSelected(ctx, previouslySelectedPoint, valueRange);
+  }
+
+  // Add left-click ecent listener to the canvas.
+  leftClickEvent(
+    ctx,
+    initialData,
+    newOriginData,
+    valueRange,
+    selectedPoint,
+    previouslySelectedPoint,
+    canvas,
+    leftClick
+  );
+
+  // Add right-click event listener to the canvas
+  rightClickEvent(
+    ctx,
+    initialData,
+    newOriginData,
+    valueRange,
+    selectedPoint,
+    previouslySelectedPoint,
+    canvas
+  );
+}
+
+// Event for left click
+function leftClickEvent(
+  ctx,
+  initialData,
+  newOriginData,
+  valueRange,
+  selectedPoint,
+  previouslySelectedPoint,
+  canvas,
+  leftClick
+) {
+  canvas.addEventListener('click', function (event) {
+    event.preventDefault();
+    let data =
+      newOriginData === null
+        ? structuredClone(initialData)
+        : structuredClone(newOriginData);
+
+    var clickedPoint = getClickCoordinates(event, canvas);
+    // Check if the mouse clicked on a point, if so - update selected point.
+    selectedPoint = searchPoints(ctx, data, valueRange, clickedPoint);
+
+    // If user selected a point - Set selected point as origin.
+    if (
+      selectedPoint &&
+      newOriginData == null &&
+      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
+    ) {
+      // Adjust the data so that the selectedPoint becomes the origin.
+      data.forEach((point) => {
+        point.x -= selectedPoint.pos.x;
+        point.y -= selectedPoint.pos.y;
+      });
+
+      selectedPoint.pos.x = 0;
+      selectedPoint.pos.y = 0;
+      previouslySelectedPoint = selectedPoint;
+      leftClick = true;
+      return createPlot(
+        initialData,
+        data,
+        selectedPoint,
+        previouslySelectedPoint,
+        leftClick
+      );
+    }
+
+    // If user selected same point twice.
+    else if (
+      selectedPoint &&
+      JSON.stringify(selectedPoint) === JSON.stringify(previouslySelectedPoint)
+    ) {
+      //Reset plot.
+      selectedPoint = null;
+      previouslySelectedPoint = null;
+      leftClick = false;
+      return createPlot(
+        initialData,
+        null,
+        selectedPoint,
+        previouslySelectedPoint,
+        leftClick
+      );
+    }
+  });
+}
+
+// Event for right click
+function rightClickEvent(
+  ctx,
+  initialData,
+  newOriginData,
+  valueRange,
+  selectedPoint,
+  previouslySelectedPoint,
+  canvas
+) {
+  canvas.addEventListener('contextmenu', function (event) {
+    event.preventDefault();
+
+    let data =
+      newOriginData === null
+        ? structuredClone(initialData)
+        : structuredClone(newOriginData);
+
+    // Get the mouse click coordinates
+    var clickedPoint = getClickCoordinates(event, canvas);
+
+    // Check if the mouse clicked on a point, if so - update selected point.
+    selectedPoint = searchPoints(ctx, data, valueRange, clickedPoint);
+
+    // If user selected a point.
+    if (
+      selectedPoint &&
+      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
+    ) {
+      // Use the selected points along with the data to find nearest neighbors.
+      const closest = findNearestNeigbor(data, selectedPoint);
+
+      // Highlight the nearest neighbors along with the selected point (in a different color).
+      highlightClosest(ctx, closest, valueRange);
+      hightLightSelected(ctx, selectedPoint, valueRange);
+      previouslySelectedPoint = selectedPoint;
+    }
+    // If user selected same point twice.
+    else if (
+      selectedPoint != null &&
+      JSON.stringify(selectedPoint) === JSON.stringify(previouslySelectedPoint)
+    ) {
+      selectedPoint = null;
+      previouslySelectedPoint = null;
+      return createPlot(
+        initialData,
+        null,
+        selectedPoint,
+        previouslySelectedPoint
+      );
+    }
+
+    // If user selected a different point.
+    else if (
+      selectedPoint != null &&
+      JSON.stringify(selectedPoint) !== JSON.stringify(previouslySelectedPoint)
+    ) {
+      previouslySelectedPoint = selectedPoint;
+      selectedPoint = null;
+      return createPlot(
+        initialData,
+        null,
+        selectedPoint,
+        previouslySelectedPoint
+      );
+    }
+  });
 }

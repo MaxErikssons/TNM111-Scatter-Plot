@@ -14,12 +14,12 @@ const readFile = () => {
         return {
           x: parseInt(values[0]),
           y: parseInt(values[1]),
-          color: values[2],
+          type: values[2],
         };
       });
 
     // Create a plot with the data
-    createPlot(jsonData, null, null);
+    createPlot(jsonData, null, null, null, false);
   };
   // start reading the file. When it is done, call the onload event defined above.
   reader.readAsText(fileInput.files[0]);
