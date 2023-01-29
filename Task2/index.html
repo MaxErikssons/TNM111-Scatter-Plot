@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['bar']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Name', 'Age', 'Best 100 m', 'Furthest Jump (m)', 'Sex'],
+          ['Anna', 16, 13.2, 5.2, 'Female'],
+          ['Maria', 18, 12.4, 4.2, 'Female'],
+          ['Sara', 14, 14.1, 2.5, 'Female'],
+          ['Adam', 21, 11.2, 6.1, 'Male']
+        ]);
+
+        var options = {
+          chart: {
+            title: 'Performance Data',
+            subtitle: 'Individuals',
+          },
+          bars: 'vertical',
+          vAxis: {format: 'decimal'},
+          height: 400,
+          colors: ['#1b9e77', '#d95f02', '#7570b3', '#e7298a']
+        };
+
+        var chart = new google.charts.Bar(document.getElementById('chart_div'));
+
+        chart.draw(data, google.charts.Bar.convertOptions(options));
+      }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div"></div>
+  </body>
+</html>
